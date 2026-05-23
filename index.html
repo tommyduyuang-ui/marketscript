@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MarketScript</title>
+<style>
+:root {
+  --bg:        #faf5ff;
+  --card:      #ffffff;
+  --primary:   #7c3aed;
+  --pri-dark:  #5b21b6;
+  --pri-lt:    #f3eeff;
+  --pri-bdr:   #c4b5fd;
+  --text:      #1c1033;
+  --muted:     #6b7280;
+  --border:    #e8d5ff;
+  --code-bg:   #16082e;
+  --code-fg:   #c4b5fd;
+  --r:         12px;
+  --sh:        0 1px 4px rgba(109,40,217,.08), 0 4px 16px rgba(109,40,217,.08);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.65;
+}
+
+/* ── Header ─────────────────────────────── */
+.hdr {
+  background: linear-gradient(135deg, #230d4a 0%, #4c1d95 100%);
+  padding: 18px 32px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 2px 20px rgba(0,0,0,.35);
+}
+.hdr-logo {
+  width: 42px; height: 42px;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+  box-shadow: 0 2px 10px rgba(168,85,247,.5);
+}
+.hdr h1 { color: #fff; font-size: 21px; font-weight: 700; letter-spacing: -.3px; }
+.hdr p  { color: rgba(255,255,255,.5); font-size: 13px; margin-top: 1px; }
+
+/* ── Layout ─────────────────────────────── */
+.wrap {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 26px 22px 80px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--sh);
+}
+
+/* ── API key ─────────────────────────────── */
+.key-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 18px; margin-bottom: 18px;
+}
+.key-lbl {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .7px; white-space: nowrap;
+}
+.key-wrap { position: relative; flex: 1; }
+.key-wrap input {
+  width: 100%; padding: 8px 36px 8px 12px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; font-family: 'Consolas','Courier New',monospace;
+  color: var(--text); background: var(--bg); outline: none;
+  transition: border-color .15s;
+}
+.key-wrap input:focus { border-color: var(--primary); }
+.eye-btn {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px;
+}
+.safe-badge {
+  font-size: 11px; background: var(--pri-lt); color: var(--primary);
+  border: 1px solid var(--pri-bdr); border-radius: 20px;
+  padding: 3px 10px; white-space: nowrap; font-weight: 500;
+}
+
+/* ── Input card ─────────────────────────── */
+.input-card { padding: 22px; margin-bottom: 24px; }
+.field-lbl {
+  display: block; font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .7px; margin-bottom: 10px;
+}
+.task-ta {
+  width: 100%; border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; font-size: 15px; font-family: inherit;
+  color: var(--text); background: var(--bg);
+  resize: vertical; min-height: 112px; outline: none;
+  transition: border-color .15s, box-shadow .15s; line-height: 1.6;
+}
+.task-ta:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(124,58,237,.1); }
+.hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.btn-row { display: flex; justify-content: flex-end; margin-top: 14px; }
+
+/* ── Buttons ─────────────────────────────── */
+.btn {
+  background: var(--primary); color: #fff; border: none; border-radius: 8px;
+  padding: 10px 24px; font-size: 14px; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: background .15s, box-shadow .15s, transform .1s;
+  box-shadow: 0 2px 8px rgba(124,58,237,.35);
+}
+.btn:hover   { background: var(--pri-dark); box-shadow: 0 4px 14px rgba(124,58,237,.45); }
+.btn:active  { transform: scale(.98); }
+.btn:disabled{ background: #9ca3af; cursor: not-allowed; box-shadow: none; }
+.spin {
+  width: 16px; height: 16px;
+  border: 2.5px solid rgba(255,255,255,.3); border-top-color: #fff;
+  border-radius: 50%; display: none; animation: rot .65s linear infinite;
+}
+@keyframes rot { to { transform: rotate(360deg); } }
+
+/* ── Exchange ────────────────────────────── */
+.exchange { margin-bottom: 32px; animation: rise .3s ease both; }
+@keyframes rise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+.xhdr { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.xhdr-lbl { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; }
+.xhdr-badge {
+  background: var(--pri-lt); color: var(--primary);
+  border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 600;
+}
+.prompt-bubble {
+  background: var(--pri-lt); border-left: 3px solid var(--primary);
+  border-radius: 8px; padding: 10px 14px;
+  font-size: 14px; font-style: italic; color: var(--text); margin-bottom: 16px;
+}
+
+/* ── Loading ─────────────────────────────── */
+.loading-card { padding: 24px 20px; display: flex; align-items: flex-start; gap: 16px; }
+.ld-icon { width: 32px; height: 32px; flex-shrink: 0; color: var(--primary); animation: rot .9s linear infinite; }
+.ld-body strong { display: block; font-size: 14px; margin-bottom: 3px; }
+.ld-body p { font-size: 13px; color: var(--muted); }
+.stream-prev {
+  font-family: 'Consolas','Courier New',monospace; font-size: 11.5px; color: var(--muted);
+  margin-top: 10px; line-height: 1.5; border-left: 2px solid var(--border);
+  padding-left: 10px; max-height: 64px; overflow: hidden; word-break: break-all;
+}
+
+/* ── Split view ──────────────────────────── */
+.split-view {
+  border: 1px solid var(--border); border-radius: var(--r);
+  overflow: hidden; box-shadow: var(--sh); margin-bottom: 16px;
+}
+.split-hdrs {
+  display: grid; grid-template-columns: 1fr 1fr;
+  background: linear-gradient(135deg, #3b0764, #6d28d9);
+}
+.split-hdr {
+  padding: 10px 16px; font-size: 12px; font-weight: 700;
+  color: rgba(255,255,255,.9); text-transform: uppercase; letter-spacing: .8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.split-hdr:first-child { border-right: 1px solid rgba(255,255,255,.15); }
+.split-hdr-sub { font-size: 10px; font-weight: 400; opacity: .65; text-transform: none; letter-spacing: 0; }
+
+/* each paired row */
+.chunk-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  align-items: stretch;                          /* bug 2: explicit stretch */
+  border-top: 1px solid rgba(109,40,217,.2);
+}
+.chunk-row:first-of-type { border-top: none; }
+
+/* code side */
+.code-cell {
+  background: var(--code-bg); border-right: 1px solid rgba(109,40,217,.2);
+  display: flex; flex-direction: column;         /* bug 2: fill row height */
+  min-width: 0;                                  /* bug 3: prevent grid blowout */
+}
+.cell-hdr {
+  padding: 7px 14px; font-size: 10.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .6px;
+  flex-shrink: 0;
+}
+.code-cell .cell-hdr {
+  background: rgba(255,255,255,.04); border-bottom: 1px solid rgba(255,255,255,.06);
+  color: rgba(196,181,253,.55);
+}
+.code-cell pre {
+  flex: 1 1 auto;                                /* bug 2: grow to fill code-cell */
+  padding: 14px 16px; overflow-x: auto; margin: 0;
+  font-family: 'Cascadia Code','Fira Code','Consolas','Courier New',monospace;
+  font-size: 12.5px; line-height: 1.7; color: var(--code-fg);
+  white-space: pre; tab-size: 4; min-height: 0;
+}
+
+/* explanation side */
+.expl-cell {
+  cursor: pointer; display: flex; flex-direction: column;
+  border-left: 3px solid transparent;
+  transition: background .12s, border-left-color .12s;
+  min-width: 0;                                  /* bug 3: prevent grid blowout */
+  overflow: hidden;                              /* bug 3: contain children */
+}
+.expl-cell:hover:not(.selected) { background: #fbf8ff; }
+.expl-cell.selected { background: #f5efff; border-left-color: var(--primary); }
+
+.expl-cell .cell-hdr {
+  background: #f9f5ff; border-bottom: 1px solid var(--border);
+  color: var(--primary); display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.expl-cell.selected .cell-hdr { background: #ede5ff; }
+.click-hint { font-size: 10px; color: #a78bfa; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.expl-cell.selected .click-hint { display: none; }
+
+.expl-text {
+  padding: 13px 16px; font-size: 14px; line-height: 1.7; color: var(--text); flex: 1;
+  overflow-wrap: break-word; word-break: break-word; min-width: 0; /* bug 3 */
+}
+.expl-text p          { margin-bottom: 8px; }
+.expl-text p:last-child { margin-bottom: 0; }
+.expl-text ul  { padding-left: 20px; }
+.expl-text li  { margin-bottom: 4px; }
+.expl-text strong { font-weight: 600; }
+
+/* feedback form (shown when .selected) */
+.fb-area {
+  display: none; margin: 0 14px 14px; padding-top: 2px;
+}
+.expl-cell.selected .fb-area { display: block; }
+.fb-area-lbl {
+  font-size: 11px; font-weight: 700; color: var(--primary);
+  text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px;
+}
+.fb-ta {
+  width: 100%; border: 1px solid var(--pri-bdr); border-radius: 8px;
+  padding: 9px 12px; font-size: 13px; font-family: inherit;
+  color: var(--text); background: #fff; resize: none; height: 68px; outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.fb-ta:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(124,58,237,.12); }
+.fb-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.btn-xs {
+  padding: 5px 14px; font-size: 12px; font-weight: 600;
+  border-radius: 6px; border: none; cursor: pointer; transition: .12s;
+}
+.btn-cancel { background: none; color: var(--muted); border: 1px solid var(--border); }
+.btn-cancel:hover { background: var(--bg); }
+.btn-submit-sm {
+  background: var(--primary); color: #fff;
+  box-shadow: 0 1px 6px rgba(124,58,237,.3);
+}
+.btn-submit-sm:hover { background: var(--pri-dark); }
+.btn-submit-sm:disabled { background: #9ca3af; cursor: not-allowed; box-shadow: none; }
+
+.updated-flash {
+  padding: 0 16px 10px; font-size: 11px; font-weight: 700;
+  color: #059669; text-transform: uppercase; letter-spacing: .5px;
+  animation: fadeout 2.5s ease forwards;
+}
+@keyframes fadeout { 0%,70%{ opacity:1; } 100%{ opacity:0; } }
+
+/* ── Bottom cards (warn + summary) ─────── */
+.bcard { margin-bottom: 14px; }
+.bcard-hdr {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 18px; border-bottom: 1px solid var(--border);
+  cursor: pointer; user-select: none; transition: background .12s;
+}
+.bcard-hdr:hover { background: var(--pri-lt); }
+.bcard-ico {
+  width: 28px; height: 28px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;
+}
+.bcard-title { font-size: 13px; font-weight: 700; flex: 1; }
+.chevron { font-size: 10px; color: var(--muted); transition: transform .18s; }
+.bcard.collapsed .chevron    { transform: rotate(-90deg); }
+.bcard.collapsed .bcard-body { display: none; }
+.bcard-body { padding: 18px; font-size: 14.5px; line-height: 1.7; }
+.bcard-body p          { margin-bottom: 10px; }
+.bcard-body p:last-child { margin-bottom: 0; }
+.bcard-body ul { padding-left: 22px; }
+.bcard-body li { margin-bottom: 6px; }
+.bcard-body strong { font-weight: 600; }
+
+.warn-card { border-top: 3px solid #f59e0b; }
+.warn-card .bcard-ico   { background: rgba(245,158,11,.12); color: #b45309; }
+.warn-card .bcard-title { color: #b45309; }
+
+.summ-card { border-top: 3px solid var(--primary); }
+.summ-card .bcard-ico   { background: var(--pri-lt); color: var(--primary); }
+.summ-card .bcard-title { color: var(--pri-dark); }
+
+/* ── Divider ─────────────────────────────── */
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 4px 0 24px; color: var(--muted);
+  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+}
+.divider::before,.divider::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* ── Refinement ──────────────────────────── */
+.refine-card { padding: 22px; margin-top: 4px; }
+.refine-hint { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+.refine-ta {
+  width: 100%; border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; font-size: 14px; font-family: inherit;
+  color: var(--text); background: var(--bg); resize: none; height: 80px;
+  outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.refine-ta:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(124,58,237,.1); }
+
+/* ── Error ───────────────────────────────── */
+.err-card {
+  background: #fff5f5; border: 1px solid #fecaca; border-radius: var(--r);
+  padding: 16px 18px; color: #dc2626; font-size: 14px;
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.err-icon { font-size: 18px; flex-shrink: 0; }
+
+@media (max-width: 720px) {
+  .hdr { padding: 14px 16px; }
+  .wrap { padding: 16px 12px 64px; }
+  .split-hdrs  { grid-template-columns: 1fr; }
+  .split-hdr:first-child { border-right: none; border-bottom: 1px solid rgba(255,255,255,.15); }
+  .chunk-row   { grid-template-columns: 1fr; }
+  .safe-badge  { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-logo">📊</div>
+  <div>
+    <h1>MarketScript</h1>
+    <p>Turn plain-English marketing tasks into interactive, explainable Python scripts</p>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- API key -->
+  <div class="card key-row">
+    <span class="key-lbl">OpenAI Key</span>
+    <div class="key-wrap">
+      <input type="password" id="apiKey" placeholder="sk-…" autocomplete="off" spellcheck="false">
+      <button class="eye-btn" onclick="toggleKey()" title="Show / hide">👁</button>
+    </div>
+    <span class="safe-badge">🔒 Never leaves your browser</span>
+  </div>
+
+  <!-- Task input -->
+  <div class="card input-card" id="inputCard">
+    <label class="field-lbl" id="inputLabel" for="taskInput">Describe your marketing data task</label>
+    <textarea class="task-ta" id="taskInput"
+      placeholder="e.g. Read a CSV of customer orders, group by product category, calculate total revenue and average order value, then sort by revenue descending and print the top 10."></textarea>
+    <p class="hint">Tip: Ctrl + Enter to submit</p>
+    <div class="btn-row">
+      <button class="btn" id="genBtn" onclick="handleGenerate()">
+        <div class="spin" id="genSpin"></div>
+        <span id="genLbl">Generate Script</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Results injected here -->
+  <div id="results"></div>
+
+  <!-- Refinement (hidden until first generation) -->
+  <div class="card refine-card" id="refineCard" style="display:none;">
+    <span class="field-lbl">Refine the Script</span>
+    <p class="refine-hint">Describe a change in plain English — full conversation context carries over automatically.</p>
+    <textarea class="refine-ta" id="refineInput"
+      placeholder='e.g. "group by region instead of category" · "add a bar chart of results" · "handle missing values in revenue"'></textarea>
+    <div class="btn-row" style="margin-top:12px;">
+      <button class="btn" id="refBtn" onclick="handleRefine()">
+        <div class="spin" id="refSpin"></div>
+        <span id="refLbl">Apply Refinement</span>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ── Prompts ──────────────────────────────── */
+const SYS = `You are a Python data analysis expert helping marketing analysts build data scripts.
+
+Respond with ONLY a valid JSON object. No markdown fences, no text before or after the JSON.
+
+Required structure:
+{
+  "chunks": [
+    {
+      "title": "Short step name (e.g. Import Libraries)",
+      "code": "Python code for this step only — plain string, no markdown fences",
+      "explanation": "Plain-English explanation for a non-coder — what it does and why it matters, no jargon"
+    }
+  ],
+  "assumptions": "Bullet list, each line starting with '- ', naming every assumed column, file path, format, or data type. Or just: None.",
+  "interview_summary": "3-5 sentence first-person paragraph the analyst could read in a job interview. No mention of AI, ChatGPT, or machine learning."
+}
+
+Rules:
+- 4-8 chunks covering logical steps: imports, load data, clean/filter, group/aggregate, compute metrics, visualize, export — use what fits the task
+- Chunks run in sequence to form one complete runnable Python script
+- code values must be plain strings with no surrounding backticks or language tags
+- explanations: plain English, what AND why, written for someone who does not write code
+- interview_summary: confident, first person, no AI mentions`;
+
+const SYS_REWRITE = `You rewrite plain-English explanations of Python code for non-coders. Respond with ONLY the updated explanation — no title, no code, no JSON, no preamble.`;
+
+/* ── State ───────────────────────────────── */
+let history      = [];        // user + assistant turns for main conversation
+let exchangeCount = 0;
+const chunkStore = {};        // eid → [{title, code, explanation}]
+let activeCell   = null;      // {eid, i}
+
+/* ── Utilities ───────────────────────────── */
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function mdToHtml(raw) {
+  let h = esc(raw);
+  h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  const lines = h.split('\n');
+  const out = []; let lt = null;
+  for (const line of lines) {
+    const t = line.trim();
+    if (t.startsWith('- ') || t.startsWith('• ')) {
+      if (lt !== 'ul') { if (lt) out.push(`</${lt}>`); out.push('<ul>'); lt = 'ul'; }
+      out.push(`<li>${t.slice(2)}</li>`);
+    } else if (/^\d+\.\s/.test(t)) {
+      if (lt !== 'ol') { if (lt) out.push(`</${lt}>`); out.push('<ol>'); lt = 'ol'; }
+      out.push(`<li>${t.replace(/^\d+\.\s/, '')}</li>`);
+    } else {
+      if (lt) { out.push(`</${lt}>`); lt = null; }
+      if (t) out.push(`<p>${t}</p>`);
+    }
+  }
+  if (lt) out.push(`</${lt}>`);
+  return out.join('');
+}
+
+function parseResponse(text) {
+  console.log('%c=== RAW API RESPONSE ===', 'color:#7c3aed;font-weight:bold');
+  console.log(text);
+
+  // Strip markdown fences in case the model wraps output anyway
+  const json = text.trim()
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/, '')
+    .replace(/\s*```$/, '')
+    .trim();
+
+  let data;
+  try {
+    data = JSON.parse(json);
+  } catch (e) {
+    console.error('JSON.parse failed:', e.message);
+    console.error('Input (first 600 chars):', json.slice(0, 600));
+    throw new Error('Could not parse model response as JSON. Open the browser console for details.');
+  }
+
+  console.log('%c=== PARSED CHUNKS ===', 'color:#7c3aed;font-weight:bold');
+  console.log(data.chunks);
+
+  // Normalize every chunk so code/explanation are always strings, never undefined
+  const chunks = Array.isArray(data.chunks)
+    ? data.chunks.map(c => ({
+        title:       String(c.title       ?? 'Step'),
+        code:        String(c.code        ?? ''),
+        explanation: String(c.explanation ?? ''),
+      }))
+    : [];
+
+  return {
+    chunks,
+    assumptions: data.assumptions      || 'None.',
+    interview:   data.interview_summary || '',
+  };
+}
+
+/* ── API ──────────────────────────────────── */
+function getKey() {
+  const k = document.getElementById('apiKey').value.trim();
+  if (!k) throw new Error('Please enter your OpenAI API key at the top of the page.');
+  return k;
+}
+
+async function streamFetch(messages, onToken) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${getKey()}` },
+    body: JSON.stringify({ model:'gpt-4o', stream:true, messages }),
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e?.error?.message || `OpenAI error ${res.status}`); }
+  const reader = res.body.getReader(); const dec = new TextDecoder(); let full = '';
+  while (true) {
+    const { done, value } = await reader.read(); if (done) break;
+    for (const line of dec.decode(value,{stream:true}).split('\n')) {
+      if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
+      try { const tok = JSON.parse(line.slice(6)).choices?.[0]?.delta?.content || ''; full += tok; onToken(full); } catch(_){}
+    }
+  }
+  return full;
+}
+
+async function simpleFetch(messages) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${getKey()}` },
+    body: JSON.stringify({ model:'gpt-4o', stream:false, messages }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `OpenAI error ${res.status}`);
+  return data.choices[0].message.content.trim();
+}
+
+/* ── Render ───────────────────────────────── */
+function renderSplit(eid) {
+  const list = chunkStore[eid] || [];
+  if (!list.length) return `<p style="padding:16px;color:var(--muted)">Could not parse chunks from response.</p>`;
+
+  const rows = list.map((c, i) => `
+    <div class="chunk-row" id="row-${eid}-${i}">
+      <div class="code-cell">
+        <div class="cell-hdr">${esc(c.title)}</div>
+        <pre>${esc(c.code)}</pre>
+      </div>
+      <div class="expl-cell" id="ecell-${eid}-${i}" onclick="selectCell(${eid},${i})">
+        <div class="cell-hdr">
+          <span>${esc(c.title)}</span>
+          <span class="click-hint">✏️ click to refine explanation</span>
+        </div>
+        <div class="expl-text" id="etext-${eid}-${i}">${mdToHtml(c.explanation)}</div>
+        <div class="fb-area" id="fbarea-${eid}-${i}" onclick="event.stopPropagation()">
+          <div class="fb-area-lbl">What sounds wrong or unclear?</div>
+          <textarea class="fb-ta" id="fbta-${eid}-${i}"
+            placeholder='e.g. "this is too technical" or "I don&apos;t understand what groupby does here"'></textarea>
+          <div class="fb-actions">
+            <button class="btn-xs btn-cancel" onclick="cancelCell(event,${eid},${i})">Cancel</button>
+            <button class="btn-xs btn-submit-sm" id="fbsub-${eid}-${i}"
+              onclick="submitFeedback(event,${eid},${i})">Submit</button>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  return `<div class="split-view">
+    <div class="split-hdrs">
+      <div class="split-hdr">🐍 Python Code</div>
+      <div class="split-hdr">💬 Plain-English Explanation <span class="split-hdr-sub">— click any card to give feedback</span></div>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+function renderBottomCards(assumptions, interview) {
+  return `
+    <div class="card bcard warn-card">
+      <div class="bcard-hdr" onclick="this.parentElement.classList.toggle('collapsed')">
+        <div class="bcard-ico">⚠️</div>
+        <span class="bcard-title">Assumption Warnings</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="bcard-body">${mdToHtml(assumptions || 'None.')}</div>
+    </div>
+    <div class="card bcard summ-card">
+      <div class="bcard-hdr" onclick="this.parentElement.classList.toggle('collapsed')">
+        <div class="bcard-ico">🎤</div>
+        <span class="bcard-title">Interview Summary</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="bcard-body">${mdToHtml(interview || '')}</div>
+    </div>`;
+}
+
+function ldCard(eid, msg) {
+  return `<div class="card loading-card" id="ld-${eid}">
+    <svg class="ld-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+    </svg>
+    <div class="ld-body">
+      <strong>${msg}</strong>
+      <p>This usually takes 10–20 seconds.</p>
+      <div class="stream-prev" id="sp-${eid}"></div>
+    </div>
+  </div>`;
+}
+
+function showErr(el, msg) {
+  el.innerHTML = `<div class="err-card"><span class="err-icon">⚠️</span><div><strong>Error</strong><br>${esc(msg)}</div></div>`;
+}
+
+/* ── Cell interactions ────────────────────── */
+function selectCell(eid, i) {
+  // deselect previous
+  if (activeCell) {
+    const prev = document.getElementById(`ecell-${activeCell.eid}-${activeCell.i}`);
+    if (prev) prev.classList.remove('selected');
+    if (activeCell.eid === eid && activeCell.i === i) { activeCell = null; return; }
+  }
+  const cell = document.getElementById(`ecell-${eid}-${i}`);
+  cell.classList.add('selected');
+  activeCell = { eid, i };
+  setTimeout(() => document.getElementById(`fbta-${eid}-${i}`)?.focus(), 50);
+}
+
+function cancelCell(e, eid, i) {
+  e.stopPropagation();
+  document.getElementById(`ecell-${eid}-${i}`)?.classList.remove('selected');
+  const ta = document.getElementById(`fbta-${eid}-${i}`);
+  if (ta) ta.value = '';
+  if (activeCell?.eid === eid && activeCell?.i === i) activeCell = null;
+}
+
+async function submitFeedback(e, eid, i) {
+  e.stopPropagation();
+  const feedback = document.getElementById(`fbta-${eid}-${i}`)?.value.trim();
+  if (!feedback) return;
+
+  const sub = document.getElementById(`fbsub-${eid}-${i}`);
+  sub.disabled = true; sub.textContent = 'Rewriting…';
+
+  const c = chunkStore[eid][i];
+  const prompt = `Section title: "${c.title}"
+
+Code:
+${c.code}
+
+Current explanation:
+${c.explanation}
+
+User feedback:
+${feedback}
+
+Rewrite the explanation to address this feedback. Plain English for a non-coder — what it does and why it matters.`;
+
+  try {
+    const updated = await simpleFetch([
+      { role:'system', content: SYS_REWRITE },
+      { role:'user',   content: prompt },
+    ]);
+    chunkStore[eid][i].explanation = updated;
+
+    const textEl = document.getElementById(`etext-${eid}-${i}`);
+    textEl.innerHTML = mdToHtml(updated);
+
+    // flash badge
+    const flash = document.createElement('div');
+    flash.className = 'updated-flash';
+    flash.textContent = '✓ Explanation updated';
+    textEl.after(flash);
+    setTimeout(() => flash.remove(), 2600);
+
+    // close
+    document.getElementById(`ecell-${eid}-${i}`)?.classList.remove('selected');
+    const ta = document.getElementById(`fbta-${eid}-${i}`);
+    if (ta) ta.value = '';
+    if (activeCell?.eid === eid && activeCell?.i === i) activeCell = null;
+  } catch (err) {
+    sub.textContent = 'Error — try again';
+    setTimeout(() => { sub.textContent = 'Submit'; sub.disabled = false; }, 3000);
+  }
+}
+
+/* ── Main generate flow ───────────────────── */
+function setLoading(btnId, spinId, lblId, on, offText) {
+  document.getElementById(btnId).disabled = on;
+  document.getElementById(spinId).style.display = on ? 'block' : 'none';
+  document.getElementById(lblId).textContent = on ? 'Generating…' : offText;
+}
+
+async function generate(prompt, isRefine) {
+  exchangeCount++;
+  const eid = exchangeCount;
+
+  history.push({ role:'user', content:prompt });
+  const messages = [{ role:'system', content:SYS }, ...history];
+
+  const results = document.getElementById('results');
+
+  if (isRefine) {
+    const dv = document.createElement('div');
+    dv.className = 'divider';
+    dv.textContent = `Refinement ${eid - 1}`;
+    results.appendChild(dv);
+  }
+
+  const xEl = document.createElement('div');
+  xEl.className = 'exchange'; xEl.id = `ex-${eid}`;
+  xEl.innerHTML = `
+    <div class="xhdr">
+      <span class="xhdr-lbl">${isRefine ? 'Refined Script' : 'Initial Script'}</span>
+      <span class="xhdr-badge">Exchange ${eid}</span>
+    </div>
+    <div class="prompt-bubble">${esc(prompt)}</div>
+    ${ldCard(eid, isRefine ? 'Applying refinement…' : 'Generating your script…')}
+    <div id="out-${eid}"></div>`;
+  results.appendChild(xEl);
+  xEl.scrollIntoView({ behavior:'smooth', block:'start' });
+
+  try {
+    const preview = document.getElementById(`sp-${eid}`);
+    const full = await streamFetch(messages, acc => { if (preview) preview.textContent = acc.slice(-280); });
+    history.push({ role:'assistant', content:full });
+
+    const parsed = parseResponse(full);
+    chunkStore[eid] = parsed.chunks;
+
+    document.getElementById(`ld-${eid}`).style.display = 'none';
+    document.getElementById(`out-${eid}`).innerHTML =
+      renderSplit(eid) + renderBottomCards(parsed.assumptions, parsed.interview);
+
+    document.getElementById('refineCard').style.display = 'block';
+    if (!isRefine) {
+      document.getElementById('taskInput').value = '';
+      document.getElementById('inputLabel').textContent = 'Describe another task';
+    }
+  } catch (err) {
+    showErr(document.getElementById(`ld-${eid}`), err.message);
+    history.pop();
+  }
+}
+
+async function handleGenerate() {
+  const p = document.getElementById('taskInput').value.trim(); if (!p) return;
+  setLoading('genBtn','genSpin','genLbl', true, 'Generate Script');
+  await generate(p, false);
+  setLoading('genBtn','genSpin','genLbl', false, 'Generate Script');
+}
+
+async function handleRefine() {
+  const p = document.getElementById('refineInput').value.trim(); if (!p) return;
+  setLoading('refBtn','refSpin','refLbl', true, 'Apply Refinement');
+  await generate(p, true);
+  setLoading('refBtn','refSpin','refLbl', false, 'Apply Refinement');
+  document.getElementById('refineInput').value = '';
+  const rc = document.getElementById('refineCard');
+  rc.parentElement.appendChild(rc);
+  rc.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function toggleKey() {
+  const i = document.getElementById('apiKey');
+  i.type = i.type === 'password' ? 'text' : 'password';
+}
+
+/* ── Keyboard shortcuts ───────────────────── */
+document.getElementById('taskInput').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleGenerate(); }
+});
+document.addEventListener('keydown', e => {
+  if (document.activeElement === document.getElementById('refineInput') &&
+      (e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleRefine(); }
+});
+</script>
+</body>
+</html>
