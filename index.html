@@ -452,30 +452,33 @@ function mdToHtml(raw) {
   return out.join('');
 }
 
-function parseResponse(text) {
-  console.log('%c=== RAW API RESPONSE ===', 'color:#7c3aed;font-weight:bold');
-  console.log(text);
+/* ── JSON helpers ─────────────────────────── */
 
-  // Strip markdown fences in case the model wraps output anyway
-  const json = text.trim()
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/, '')
-    .replace(/\s*```$/, '')
-    .trim();
+// Attempt JSON.parse without throwing
+function tryParse(str) {
+  try { return JSON.parse(str); } catch (_) { return null; }
+}
 
-  let data;
-  try {
-    data = JSON.parse(json);
-  } catch (e) {
-    console.error('JSON.parse failed:', e.message);
-    console.error('Input (first 600 chars):', json.slice(0, 600));
-    throw new Error('Could not parse model response as JSON. Open the browser console for details.');
+// Walk the string character-by-character to find the outermost { … }
+// Works even when the model wraps JSON in prose or adds trailing text
+function extractJsonObject(text) {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (esc)              { esc = false; continue; }
+    if (ch === '\\' && inStr) { esc = true;  continue; }
+    if (ch === '"')       { inStr = !inStr; continue; }
+    if (inStr)            { continue; }
+    if (ch === '{')       { depth++; }
+    if (ch === '}')       { depth--; if (depth === 0) return text.slice(start, i + 1); }
   }
+  return null;
+}
 
-  console.log('%c=== PARSED CHUNKS ===', 'color:#7c3aed;font-weight:bold');
-  console.log(data.chunks);
-
-  // Normalize every chunk so code/explanation are always strings, never undefined
+// Normalize a parsed data object into the shape the renderer expects
+function normalizeData(data) {
   const chunks = Array.isArray(data.chunks)
     ? data.chunks.map(c => ({
         title:       String(c.title       ?? 'Step'),
@@ -483,12 +486,76 @@ function parseResponse(text) {
         explanation: String(c.explanation ?? ''),
       }))
     : [];
-
   return {
     chunks,
     assumptions: data.assumptions      || 'None.',
     interview:   data.interview_summary || '',
   };
+}
+
+// Last-resort fallback: extract whatever code blocks exist and show raw text
+function rawFallback(text) {
+  console.warn('All JSON strategies failed — rendering raw fallback');
+  const codeMatches = [...text.matchAll(/```(?:python)?\s*([\s\S]*?)```/g)];
+  const codes = codeMatches.map(m => m[1].trim()).filter(Boolean);
+  const prose = text.replace(/```[\s\S]*?```/g, '').trim();
+
+  if (codes.length > 0) {
+    return {
+      chunks: codes.map((code, i) => ({
+        title:       codes.length === 1 ? 'Generated Script' : `Part ${i + 1}`,
+        code,
+        explanation: i === 0
+          ? (prose || 'See code above.')
+          : '',
+      })),
+      assumptions: '⚠️ The response could not be parsed as structured JSON. Code was extracted from the raw output — verify column names and file paths before running.',
+      interview: '',
+    };
+  }
+
+  // Nothing at all — show the raw text as explanation
+  return {
+    chunks: [{ title: 'Raw Response', code: '# Could not extract code automatically', explanation: text }],
+    assumptions: '⚠️ The response could not be parsed. Try rephrasing your task or simplifying the request.',
+    interview: '',
+  };
+}
+
+function parseResponse(text) {
+  console.log('%c=== RAW API RESPONSE ===', 'color:#7c3aed;font-weight:bold');
+  console.log(text);
+
+  // Strategy 1 — strip fences and parse the whole thing directly
+  const stripped = text.trim()
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/, '')
+    .replace(/\s*```$/, '')
+    .trim();
+  let data = tryParse(stripped);
+  if (data) {
+    console.log('Parse strategy 1 succeeded (direct)');
+    console.log('%c=== PARSED CHUNKS ===', 'color:#7c3aed;font-weight:bold');
+    console.log(data.chunks);
+    return normalizeData(data);
+  }
+
+  // Strategy 2 — bracket-scan: find the outermost { … } anywhere in the response
+  console.warn('Strategy 1 failed — trying bracket-scan extraction');
+  const extracted = extractJsonObject(text);
+  if (extracted) {
+    data = tryParse(extracted);
+    if (data) {
+      console.log('Parse strategy 2 succeeded (bracket-scan)');
+      console.log('%c=== PARSED CHUNKS ===', 'color:#7c3aed;font-weight:bold');
+      console.log(data.chunks);
+      return normalizeData(data);
+    }
+  }
+
+  // Strategy 3 — raw fallback: extract code blocks and show readable output
+  console.warn('Strategy 2 failed — using raw fallback renderer');
+  return rawFallback(text);
 }
 
 /* ── API ──────────────────────────────────── */
