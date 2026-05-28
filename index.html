@@ -410,7 +410,8 @@ CHUNK_END
 Repeat CHUNK_START through CHUNK_END for each step (4 to 8 steps total), then output:
 
 ASSUMPTIONS_START
-- List every assumed column name, file path, data type, or format — one item per line starting with "- ". If none, write: None.
+- List every assumed column name, file path, data type, or format — one item per line starting with "- ".
+- NEVER write "None" or leave this section empty. Every script makes assumptions. At minimum you must list: the exact file name the script reads, every column name used (exactly as written in the code), and the expected data type for each column (e.g. numeric, text, date). Include any other assumptions about structure, formatting, or missing values.
 ASSUMPTIONS_END
 
 INTERVIEW_START
