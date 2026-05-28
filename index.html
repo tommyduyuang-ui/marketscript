@@ -393,27 +393,36 @@ body {
 /* ── Prompts ──────────────────────────────── */
 const SYS = `You are a Python data analysis expert helping marketing analysts build data scripts.
 
-Respond with ONLY a valid JSON object. No markdown fences, no text before or after the JSON.
+Respond using ONLY the structured format below. Every tag must appear on its own line, exactly as written. No extra text before or after.
 
-Required structure:
-{
-  "chunks": [
-    {
-      "title": "Short step name (e.g. Import Libraries)",
-      "code": "Python code for this step only — plain string, no markdown fences",
-      "explanation": "Plain-English explanation for a non-coder — what it does and why it matters, no jargon"
-    }
-  ],
-  "assumptions": "Bullet list, each line starting with '- ', naming every assumed column, file path, format, or data type. Or just: None.",
-  "interview_summary": "3-5 sentence first-person paragraph the analyst could read in a job interview. No mention of AI, ChatGPT, or machine learning."
-}
+CHUNK_START
+CHUNK_TITLE
+Import Libraries
+CHUNK_TITLE_END
+CHUNK_CODE
+import pandas as pd
+CHUNK_CODE_END
+CHUNK_EXPLANATION
+A plain-English explanation of this step for someone who has never written code.
+CHUNK_EXPLANATION_END
+CHUNK_END
+
+Repeat CHUNK_START through CHUNK_END for each step (4 to 8 steps total), then output:
+
+ASSUMPTIONS_START
+- List every assumed column name, file path, data type, or format — one item per line starting with "- ". If none, write: None.
+ASSUMPTIONS_END
+
+INTERVIEW_START
+A 3-5 sentence first-person paragraph the analyst could read aloud in a job interview. No mention of AI, ChatGPT, or machine learning.
+INTERVIEW_END
 
 Rules:
-- 4-8 chunks covering logical steps: imports, load data, clean/filter, group/aggregate, compute metrics, visualize, export — use what fits the task
-- Chunks run in sequence to form one complete runnable Python script
-- code values must be plain strings with no surrounding backticks or language tags
-- explanations: plain English, what AND why, written for someone who does not write code
-- interview_summary: confident, first person, no AI mentions`;
+- 4-8 chunks covering: imports, load data, clean/filter, group/aggregate, compute metrics, sort/rank, export — use whatever fits the task
+- Chunks must run in sequence as one complete Python script
+- CHUNK_CODE sections must be plain Python — no backticks, no markdown fences, no language tags
+- CHUNK_EXPLANATION sections must be plain English — what the step does and why it matters — written for someone who does not code
+- Output NOTHING outside the tags above — no preamble, no closing remarks, no extra commentary`;
 
 const SYS_REWRITE = `You rewrite plain-English explanations of Python code for non-coders. Respond with ONLY the updated explanation — no title, no code, no JSON, no preamble.`;
 
@@ -452,110 +461,59 @@ function mdToHtml(raw) {
   return out.join('');
 }
 
-/* ── JSON helpers ─────────────────────────── */
-
-// Attempt JSON.parse without throwing
-function tryParse(str) {
-  try { return JSON.parse(str); } catch (_) { return null; }
-}
-
-// Walk the string character-by-character to find the outermost { … }
-// Works even when the model wraps JSON in prose or adds trailing text
-function extractJsonObject(text) {
-  const start = text.indexOf('{');
-  if (start === -1) return null;
-  let depth = 0, inStr = false, esc = false;
-  for (let i = start; i < text.length; i++) {
-    const ch = text[i];
-    if (esc)              { esc = false; continue; }
-    if (ch === '\\' && inStr) { esc = true;  continue; }
-    if (ch === '"')       { inStr = !inStr; continue; }
-    if (inStr)            { continue; }
-    if (ch === '{')       { depth++; }
-    if (ch === '}')       { depth--; if (depth === 0) return text.slice(start, i + 1); }
-  }
-  return null;
-}
-
-// Normalize a parsed data object into the shape the renderer expects
-function normalizeData(data) {
-  const chunks = Array.isArray(data.chunks)
-    ? data.chunks.map(c => ({
-        title:       String(c.title       ?? 'Step'),
-        code:        String(c.code        ?? ''),
-        explanation: String(c.explanation ?? ''),
-      }))
-    : [];
-  return {
-    chunks,
-    assumptions: data.assumptions      || 'None.',
-    interview:   data.interview_summary || '',
-  };
-}
-
-// Last-resort fallback: extract whatever code blocks exist and show raw text
-function rawFallback(text) {
-  console.warn('All JSON strategies failed — rendering raw fallback');
-  const codeMatches = [...text.matchAll(/```(?:python)?\s*([\s\S]*?)```/g)];
-  const codes = codeMatches.map(m => m[1].trim()).filter(Boolean);
-  const prose = text.replace(/```[\s\S]*?```/g, '').trim();
-
-  if (codes.length > 0) {
-    return {
-      chunks: codes.map((code, i) => ({
-        title:       codes.length === 1 ? 'Generated Script' : `Part ${i + 1}`,
-        code,
-        explanation: i === 0
-          ? (prose || 'See code above.')
-          : '',
-      })),
-      assumptions: '⚠️ The response could not be parsed as structured JSON. Code was extracted from the raw output — verify column names and file paths before running.',
-      interview: '',
-    };
-  }
-
-  // Nothing at all — show the raw text as explanation
-  return {
-    chunks: [{ title: 'Raw Response', code: '# Could not extract code automatically', explanation: text }],
-    assumptions: '⚠️ The response could not be parsed. Try rephrasing your task or simplifying the request.',
-    interview: '',
-  };
-}
+/* ── Tag-based parser ─────────────────────── */
 
 function parseResponse(text) {
   console.log('%c=== RAW API RESPONSE ===', 'color:#7c3aed;font-weight:bold');
   console.log(text);
 
-  // Strategy 1 — strip fences and parse the whole thing directly
-  const stripped = text.trim()
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/, '')
-    .replace(/\s*```$/, '')
-    .trim();
-  let data = tryParse(stripped);
-  if (data) {
-    console.log('Parse strategy 1 succeeded (direct)');
-    console.log('%c=== PARSED CHUNKS ===', 'color:#7c3aed;font-weight:bold');
-    console.log(data.chunks);
-    return normalizeData(data);
-  }
+  const chunks = [];
 
-  // Strategy 2 — bracket-scan: find the outermost { … } anywhere in the response
-  console.warn('Strategy 1 failed — trying bracket-scan extraction');
-  const extracted = extractJsonObject(text);
-  if (extracted) {
-    data = tryParse(extracted);
-    if (data) {
-      console.log('Parse strategy 2 succeeded (bracket-scan)');
-      console.log('%c=== PARSED CHUNKS ===', 'color:#7c3aed;font-weight:bold');
-      console.log(data.chunks);
-      return normalizeData(data);
+  // Split on CHUNK_START / CHUNK_END to get each block
+  const chunkBlocks = text.split('CHUNK_START');
+  for (let i = 1; i < chunkBlocks.length; i++) {
+    const block = chunkBlocks[i];
+    const endIdx = block.indexOf('CHUNK_END');
+    const inner  = endIdx !== -1 ? block.slice(0, endIdx) : block;
+
+    const title = extractTag(inner, 'CHUNK_TITLE',       'CHUNK_TITLE_END');
+    const code  = extractTag(inner, 'CHUNK_CODE',        'CHUNK_CODE_END');
+    const expl  = extractTag(inner, 'CHUNK_EXPLANATION', 'CHUNK_EXPLANATION_END');
+
+    if (title || code || expl) {
+      chunks.push({
+        title:       title || `Step ${i}`,
+        code:        code  || '',
+        explanation: expl  || '',
+      });
     }
   }
 
-  // Strategy 3 — raw fallback: extract code blocks and show readable output
-  console.warn('Strategy 2 failed — using raw fallback renderer');
-  return rawFallback(text);
+  const assumptions = extractTag(text, 'ASSUMPTIONS_START', 'ASSUMPTIONS_END') || 'None.';
+  const interview   = extractTag(text, 'INTERVIEW_START',   'INTERVIEW_END')   || '';
+
+  if (chunks.length > 0) {
+    console.log(`Tag parser found ${chunks.length} chunks`);
+    return { chunks, assumptions, interview };
+  }
+
+  // Fallback: nothing matched — show raw output so user can see what happened
+  console.warn('Tag parser found no chunks — raw fallback');
+  return {
+    chunks: [{ title: 'Raw Response', code: '# Could not parse output', explanation: text }],
+    assumptions: '⚠️ The response did not match the expected format. Try rephrasing your task.',
+    interview: '',
+  };
+}
+
+// Pull the text between an open tag and its matching close tag
+function extractTag(text, openTag, closeTag) {
+  const s = text.indexOf(openTag);
+  if (s === -1) return null;
+  const contentStart = s + openTag.length;
+  const e = text.indexOf(closeTag, contentStart);
+  const raw = e !== -1 ? text.slice(contentStart, e) : text.slice(contentStart);
+  return raw.trim() || null;
 }
 
 /* ── API ──────────────────────────────────── */
@@ -569,7 +527,7 @@ async function streamFetch(messages, onToken) {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${getKey()}` },
-    body: JSON.stringify({ model:'gpt-4o', stream:true, messages, response_format:{ type:'json_object' } }),
+    body: JSON.stringify({ model:'gpt-4o', stream:true, messages }),
   });
   if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e?.error?.message || `OpenAI error ${res.status}`); }
   const reader = res.body.getReader(); const dec = new TextDecoder(); let full = '';
