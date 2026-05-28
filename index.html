@@ -569,7 +569,7 @@ async function streamFetch(messages, onToken) {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${getKey()}` },
-    body: JSON.stringify({ model:'gpt-4o', stream:true, messages }),
+    body: JSON.stringify({ model:'gpt-4o', stream:true, messages, response_format:{ type:'json_object' } }),
   });
   if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e?.error?.message || `OpenAI error ${res.status}`); }
   const reader = res.body.getReader(); const dec = new TextDecoder(); let full = '';
